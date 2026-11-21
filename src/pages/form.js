@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Upload } from '../components/ui/Upload';
+import { getFromLocalStorage, saveToLocalStorage } from '../utils/storage';
+import Image from 'next/image';
+import { ArrowLeft, ArrowRight, Mail, MessageSquareText, ShieldCheck, User } from 'lucide-react';
 
 export default function FormPage() {
   const router = useRouter();
@@ -10,82 +13,157 @@ export default function FormPage() {
   const [email, setEmail] = useState('');
   const [avatar, setAvatar] = useState(null);
   const [specialRequest, setSpecialRequest] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const savedUser = getFromLocalStorage('ticketUser');
+    if (savedUser) {
+      setName(savedUser.name || '');
+      setEmail(savedUser.email || '');
+      setAvatar(savedUser.avatar || null);
+      setSpecialRequest(savedUser.specialRequest || '');
+    }
+  }, []);
 
   const handleSubmit = () => {
-    if (!name || !email) {
-      alert('Please fill in all required fields.');
+    if (!name.trim() || !email.trim()) {
+      setError('Please fill in all required fields.');
       return;
     }
 
-    // Save user data in localStorage
-    const userData = { name, email, avatar, specialRequest };
-    localStorage.setItem('ticketUser', JSON.stringify(userData));
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Please enter a valid email address.');
+      return;
+    }
 
-    // Redirect to ticket page
+    const ticketId = `TECHEMBER-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const userData = {
+      name: name.trim(),
+      email: email.trim(),
+      avatar,
+      specialRequest: specialRequest.trim(),
+      ticketId,
+    };
+    saveToLocalStorage('ticketUser', userData);
+
     router.push('/ticket');
   };
 
   return (
-    <div className="min-h-screen bg-[#0c3035] text-white flex items-center justify-center px-4">
-      <div className="max-w-lg w-full bg-[#12464E] p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold text-center mb-4">Complete Your Profile</h2>
+    <main className="relative min-h-screen overflow-hidden bg-[#081d22] px-4 py-5 text-white sm:px-6 sm:py-7">
+      <div className="pointer-events-none absolute -left-40 top-20 h-80 w-80 rounded-full bg-teal-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-40 bottom-0 h-96 w-96 rounded-full bg-cyan-400/10 blur-3xl" />
 
-        {/* Upload Profile Photo */}
-        <div className="mb-4">
-          <label className="block text-gray-300">Upload Profile Photo</label>
-          <Upload
-            onChange={(file) => {
-              const fileURL = URL.createObjectURL(file);
-              setAvatar(fileURL);
-            }}
-            className="mt-2 border border-gray-500 p-6 text-center rounded-lg cursor-pointer hover:border-blue-400 transition"
-          >
-            Drag & drop or click to upload
-          </Upload>
+      <header className="relative mx-auto flex max-w-5xl items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-white/10 bg-white p-1 shadow-lg">
+            <Image src="/logo.jpg" alt="Techember" fill sizes="40px" className="object-contain" />
+          </div>
+          <div>
+            <p className="text-sm font-bold tracking-wide">Techember Fest</p>
+            <p className="text-xs text-slate-400">Attendee profile</p>
+          </div>
         </div>
 
-        {/* Name Input */}
-        <div className="mb-4">
-          <label className="block text-gray-300">Enter your name</label>
-          <Input
-            type="text"
-            placeholder="Your Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mt-2 w-full p-2 border border-gray-500 rounded-lg bg-[#08252B] text-white"
-          />
+        <div className="hidden items-center gap-2 sm:flex">
+          {[1, 2, 3].map((step) => (
+            <div key={step} className="flex items-center gap-2">
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${step <= 2 ? 'bg-teal-300 text-[#08252B]' : 'border border-white/10 bg-white/5 text-slate-400'}`}>{step}</span>
+              {step < 3 && <span className={`h-px w-8 ${step === 1 ? 'bg-teal-300/60' : 'bg-teal-300/40'}`} />}
+            </div>
+          ))}
         </div>
+      </header>
 
-        {/* Email Input */}
-        <div className="mb-4">
-          <label className="block text-gray-300">Enter your email *</label>
-          <Input
-            type="email"
-            placeholder="hello@aviolagos.io"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-2 w-full p-2 border border-gray-500 rounded-lg bg-gray-800 text-white"
-          />
-        </div>
+      <section className="relative mx-auto mt-6 max-w-5xl">
+        <div className="grid overflow-hidden rounded-[28px] border border-white/10 bg-[#102f35]/80 shadow-2xl shadow-black/20 backdrop-blur lg:grid-cols-[360px_1fr]">
+          <aside className="border-b border-white/10 p-6 lg:border-b-0 lg:border-r lg:p-8">
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-teal-300">Step 2 of 3</p>
+            <h1 className="mt-3 text-3xl font-bold">Create your profile</h1>
+            <p className="mt-3 text-sm leading-6 text-slate-400">Your details will appear on the digital ticket.</p>
 
-        {/* Special Request */}
-        <div className="mb-4">
-          <label className="block text-gray-300">Special request?</label>
-          <textarea
-            placeholder="Textarea"
-            value={specialRequest}
-            onChange={(e) => setSpecialRequest(e.target.value)}
-            className="mt-2 w-full p-2 border border-gray-500 rounded-lg bg-gray-800 text-white h-24"
-          />
-        </div>
+            <div className="mt-7 flex justify-center lg:mt-10">
+              <Upload
+                initialPreview={avatar}
+                onChange={(dataUrl) => {
+                  setAvatar(dataUrl);
+                  setError('');
+                }}
+                onError={setError}
+              />
+            </div>
 
-        {/* Submit Button */}
-        <div className="flex justify-end">
-          <Button onClick={handleSubmit} className="bg-blue-400 hover:bg-blue-500 px-6 py-2">
-            Next
-          </Button>
+            <div className="mt-7 flex items-start gap-3 rounded-2xl border border-teal-300/10 bg-teal-300/5 p-4 text-xs leading-5 text-slate-300">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal-300" />
+              Your photo is stored only in this browser and included with your ticket.
+            </div>
+          </aside>
+
+          <div className="p-6 sm:p-8">
+            <div className="grid gap-5">
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-200">Full name <span className="text-teal-300">*</span></span>
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setError('');
+                    }}
+                    className="h-12 rounded-xl border-white/10 bg-[#081f24] pl-11 text-white placeholder:text-slate-600 focus:border-teal-300/50 focus:ring-teal-300/20"
+                  />
+                </div>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-200">Email address <span className="text-teal-300">*</span></span>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input
+                    type="email"
+                    placeholder="hello@example.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError('');
+                    }}
+                    className="h-12 rounded-xl border-white/10 bg-[#081f24] pl-11 text-white placeholder:text-slate-600 focus:border-teal-300/50 focus:ring-teal-300/20"
+                  />
+                </div>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-200">Special request <span className="font-normal text-slate-500">(optional)</span></span>
+                <div className="relative">
+                  <MessageSquareText className="pointer-events-none absolute left-4 top-4 h-4 w-4 text-slate-500" />
+                  <textarea
+                    placeholder="Accessibility needs, dietary preferences or a note..."
+                    value={specialRequest}
+                    onChange={(e) => setSpecialRequest(e.target.value)}
+                    className="h-28 w-full resize-none rounded-xl border border-white/10 bg-[#081f24] py-3 pl-11 pr-4 text-white outline-none transition placeholder:text-slate-600 focus:border-teal-300/50 focus:ring-2 focus:ring-teal-300/20"
+                  />
+                </div>
+              </label>
+
+              {error && (
+                <p role="alert" className="rounded-xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</p>
+              )}
+
+              <div className="mt-2 flex items-center justify-between gap-3 border-t border-white/10 pt-6">
+                <Button onClick={() => router.push('/')} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-slate-200 transition hover:bg-white/10">
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </Button>
+                <Button onClick={handleSubmit} className="flex items-center gap-2 rounded-xl bg-teal-300 px-5 py-3 font-bold text-[#08252B] shadow-[0_12px_30px_rgba(45,212,191,.14)] transition hover:bg-teal-200">
+                  Generate ticket <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

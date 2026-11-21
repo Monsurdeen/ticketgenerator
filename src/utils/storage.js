@@ -6,8 +6,13 @@ export const saveToLocalStorage = (key, value) => {
   
   export const getFromLocalStorage = (key) => {
     if (typeof window !== 'undefined') {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : null;
+        try {
+          const item = localStorage.getItem(key);
+          return item ? JSON.parse(item) : null;
+        } catch {
+          localStorage.removeItem(key);
+          return null;
+        }
     }
     return null;
   };
