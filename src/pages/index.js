@@ -12,7 +12,8 @@ export default function Home() {
   const [selectedTickets, setSelectedTickets] = useState('1');
 
   useEffect(() => {
-    setTicketType(getFromLocalStorage('ticketType') || 'Free');
+    const savedTicketType = getFromLocalStorage('ticketType') || 'Free';
+    setTicketType(savedTicketType === '$150 VIP' ? 'VIP' : savedTicketType === '$150 VVIP' ? 'VVIP' : savedTicketType);
     setSelectedTickets(String(getFromLocalStorage('selectedTickets') || '1'));
   }, []);
 
@@ -79,8 +80,8 @@ export default function Home() {
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
                   { type: 'Free', price: 'Free', detail: 'Regular access' },
-                  { type: '$150 VIP', price: '$150', detail: 'VIP access' },
-                  { type: '$150 VVIP', price: '$150', detail: 'VVIP access' },
+                  { type: 'VIP', price: '₦150,000', detail: 'VIP access' },
+                  { type: 'VVIP', price: '₦150,000', detail: 'VVIP access' },
                 ].map((ticket) => {
                   const selected = ticketType === ticket.type;
                   return (

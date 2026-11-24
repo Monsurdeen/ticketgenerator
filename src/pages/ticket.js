@@ -7,6 +7,7 @@ import { useRouter } from 'next/router';
 import { getFromLocalStorage } from '../utils/storage';
 import { Button } from '../components/ui/button';
 import Image from 'next/image';
+import { createBrowserSupabase } from '../lib/supabase';
 
 export default function Ticket() {
   const router = useRouter();
@@ -20,21 +21,61 @@ export default function Ticket() {
   const ticketRef = useRef(null);
 
   useEffect(() => {
-    const storedUser = getFromLocalStorage('ticketUser');
-    if (!storedUser?.name || !storedUser?.email) {
-      setIsLoading(false);
-      router.replace('/form');
-      return;
-    }
-    setUser(storedUser);
-    setTicketType(getFromLocalStorage('ticketType') || 'Free');
-    setTicketCount(String(getFromLocalStorage('selectedTickets') || '1'));
-    setIsLoading(false);
+    if (!router.isReady) return;
+
+    const loadBooking = async () => {
+      const bookingId = typeof router.query.booking === 'string' ? router.query.booking : null;
+      const storedUser = getFromLocalStorage('ticketUser');
+
+      if (!bookingId) {
+        if (!storedUser?.name || !storedUser?.email) {
+          router.replace('/form');
+          return;
+        }
+        setUser(storedUser);
+        setTicketType(getFromLocalStorage('ticketType') || 'Free');
+        setTicketCount(String(getFromLocalStorage('selectedTickets') || '1'));
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const supabase = createBrowserSupabase();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.replace(`/auth?next=${encodeURIComponent(`/ticket?booking=${bookingId}`)}`);
+          return;
+        }
+
+        const response = await fetch(`/api/bookings/record/${bookingId}`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Unable to load ticket');
+
+        const booking = result.booking;
+        setUser({
+          name: booking.name,
+          email: booking.email,
+          avatar: storedUser?.avatar || null,
+          specialRequest: booking.special_request,
+          ticketId: booking.ticket_ids?.[0] || booking.id,
+        });
+        setTicketType(booking.ticket_type);
+        setTicketCount(String(booking.quantity));
+        setIsLoading(false);
+      } catch (bookingError) {
+        setDownloadError(bookingError.message);
+        setIsLoading(false);
+      }
+    };
+
+    loadBooking();
   }, [router]);
 
   useEffect(() => {
-    if (user?.email && barcodeRef.current) {
-      JsBarcode(barcodeRef.current, user.email, {
+    if (user?.ticketId && barcodeRef.current) {
+      JsBarcode(barcodeRef.current, user.ticketId, {
         format: 'CODE128',
         lineColor: '#000',
         background: '#fff',

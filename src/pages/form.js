@@ -25,7 +25,15 @@ export default function FormPage() {
     }
   }, []);
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    if (router.isReady && router.query.checkout === 'failed') {
+      setError('We could not confirm your Paystack payment. If you were charged, please contact support before trying again.');
+    }
+  }, [router.isReady, router.query.checkout]);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
     if (!name.trim() || !email.trim()) {
       setError('Please fill in all required fields.');
       return;
@@ -36,17 +44,41 @@ export default function FormPage() {
       return;
     }
 
-    const ticketId = `TECHEMBER-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
     const userData = {
       name: name.trim(),
       email: email.trim(),
       avatar,
       specialRequest: specialRequest.trim(),
-      ticketId,
     };
     saveToLocalStorage('ticketUser', userData);
+    setIsSubmitting(true);
+    setError('');
 
-    router.push('/ticket');
+    try {
+      const ticketType = getFromLocalStorage('ticketType') || 'Free';
+      const quantity = getFromLocalStorage('selectedTickets') || '1';
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...userData,
+          ticketType,
+          quantity,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to create booking');
+
+      if (result.url) {
+        window.location.assign(result.url);
+      } else if (result.successUrl) {
+        router.push(result.successUrl);
+      }
+    } catch (checkoutError) {
+      setError(checkoutError.message || 'Unable to continue to checkout.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -156,8 +188,8 @@ export default function FormPage() {
                 <Button onClick={() => router.push('/')} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-slate-200 transition hover:bg-white/10">
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Button>
-                <Button onClick={handleSubmit} className="flex items-center gap-2 rounded-xl bg-teal-300 px-5 py-3 font-bold text-[#08252B] shadow-[0_12px_30px_rgba(45,212,191,.14)] transition hover:bg-teal-200">
-                  Generate ticket <ArrowRight className="h-4 w-4" />
+                <Button onClick={handleSubmit} disabled={isSubmitting} className="flex items-center gap-2 rounded-xl bg-teal-300 px-5 py-3 font-bold text-[#08252B] shadow-[0_12px_30px_rgba(45,212,191,.14)] transition hover:bg-teal-200">
+                  {isSubmitting ? 'Preparing checkout...' : 'Generate ticket'} <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
